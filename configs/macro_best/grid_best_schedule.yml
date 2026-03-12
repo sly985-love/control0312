@@ -1,0 +1,6 @@
+optimal_scheduling:
+  photoperiod_hours: 16.0
+  rho_h: 100.0
+  rho_l: 25.0
+  t_h_days: 10
+  t_l_days: 20

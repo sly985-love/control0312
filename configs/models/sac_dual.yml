@@ -1,0 +1,53 @@
+# ==============================================================================
+# 文件路径: configs/models/sac_dual.yml
+# 描述: 强化学习 Soft Actor-Critic (SAC) 预训练超参数 (双区扩维版)
+# 作用: 训练终端价值网络 (Terminal Value Function)，为 SMPC 提供长远目光
+# ==============================================================================
+
+PFAL_Dual:
+  Np: 0                           # RL 单独训练时不使用 MPC 的预测视界
+  obs_module: PFALObservationsDual # 升级为双区环境观测模块
+  # 观测状态扩充至 13 维 (包含高低密度双区的结构/非结构干重)
+  obs_names: [xDn_h, xDs_h, xDn_l, xDs_l, xC, xT, xH, xT_lb, xT_ub, x_photo, xTo, xCo, xHo]
+  weather_filename: outdoorWeatherWurGlas2014.csv # 外部气象扰动数据源
+
+hyperparameters:
+  # --- 1. 宏观训练进度参数 ---
+  total_timesteps: 300_000        # 扩维后增加总探索步数以保证 13D 状态空间的充分收敛 (原版为192_000)
+  n_envs: 1                       # 环境并行数
+  
+  # --- 2. 算法核心机制 (SAC) ---
+  policy: MlpPolicy               # 采用多层感知机(MLP)作为策略网络
+  learning_rate: 5.e-3            # 初始学习率
+  schedule: True                  # 开启学习率线性衰减，提升后期微调稳定性
+  batch_size: 1024                # 批次大小，大批次有助于降低物理环境带来的方差
+  tau: 0.005                      # 目标网络软更新(Polyak Averaging)系数
+  gamma: 0.95                     # 折扣因子。0.95 适合长周期排程，能看到未来较远的回报
+  ent_coef: auto                  # 自动调节熵系数，动态平衡探索(Exploration)与利用(Exploitation)
+  train_freq: 1                   # 每与环境交互 1 步就训练 1 次
+  gradient_steps: 1               # 每次训练执行的梯度更新步数
+  target_update_interval: 1       # 目标网络高频软更新，防止 Q 值过估计
+  
+  # --- 3. 经验回放池配置 (Replay Buffer) ---
+  buffer_size: 100_000            # 回放池容量: 10万条经验
+  learning_starts: 1000           # 降低早期纯随机探索，尽快利用真实物理方程的反馈 (原为 17_460)
+  replay_buffer_class: null       # 显式声明使用标准回放池
+  replay_buffer_kwargs: null      #
+  optimize_memory_usage: False    # 状态仅13维，关闭内存极限压缩以换取更快的 CPU 采样和训练速度
+  
+  # --- 4. 探索与噪声机制 (Exploration & Noise) ---
+  action_noise: 
+    normalactionnoise:
+      sigma: 0.05                 # 动作高斯噪声标准差
+  use_sde: False                  # 必须为 False。关闭状态依赖探索，允许 HVAC 等设备执行脉冲式(阶跃)跳跃控制
+  sde_sample_freq: -1             #
+  use_sde_at_warmup: False        #
+  
+  # --- 5. 日志与网络架构 (Logging & Architecture) ---
+  stats_window_size: 100          # Tensorboard/Wandb 曲线平滑计算窗口
+  policy_kwargs: {
+    # 加深且加宽网络以适应 13D 输入特征，提取更复杂的非线性热力学关系
+    net_arch: {pi: [256, 256], qf: [256, 256]}, 
+    optimizer_class: adam,        # 使用 Adam 优化器
+    activation_fn: relu           # 使用 ReLU 激活函数
+  }

@@ -1,0 +1,65 @@
+# ==============================================================================
+# 文件路径: configs/sweeps/sac_sweep_dual.yml
+# 描述: Wandb 超参数自动搜索 (Hyperparameter Sweep) 配置文件
+# 作用: 定义底层的搜索空间，让程序自动寻找让生菜长得最好、最省电的 RL 参数组合。
+# ==============================================================================
+
+PFAL_Dual:
+  method: random                  # 搜索策略: 随机搜索法
+  metric:
+    name: rollout/ep_rew_mean     # 优化的终极目标指标: 回合平均奖励
+    goal: maximize                # 目标方向: 最大化
+
+  # 搜索空间定义 (Search Space)
+  parameters:
+    # --- 固定参数 (不允许 sweep 修改，防止破坏底层环境适配) ---
+    policy:
+      value: MlpPolicy            #
+    train_freq:
+      value: 1                    #
+    gradient_steps:
+      value: 1                    #
+    ent_coef:
+      value: auto_1               #
+    use_sde:
+      value: false                # 显式禁止状态依赖探索
+    use_sde_at_warmup:
+      value: false                #
+    sde_sample_freq:
+      value: 0                    #
+    learning_starts:
+      value: 1000                 # 固定为较小的随机探索期
+    optimize_memory_usage:
+      value: false                #
+    optimizer_kwargs: 
+      value: {amsgrad: True}      #
+    replay_buffer_class:
+      value: null                 #
+    replay_buffer_kwargs:
+      value: null                 #
+    stats_window_size:
+      value: 100                  #
+    action_noise_type: 
+        value: normalactionnoise  #
+    action_sigma:
+      value: 0.05                 #
+
+    # --- 动态搜索参数 (允许 sweep 在这些区间内掷骰子尝试) ---
+    tau:
+      distribution: log_uniform_values
+      max: 0.1                    #
+      min: 0.001                  #
+    batch_size:
+      values: [128, 256, 512, 1024, 2048] # 扩大了最大批次的尝试范围，应对 13D
+    learning_rate:
+      distribution: log_uniform_values
+      min: !!float 1e-4           #
+      max: !!float 1e-2           #
+    gamma_offset:
+      distribution: uniform
+      min: 0.01                   #
+      max: 0.1                    #
+    net_size:
+      values: [128, 256, 512, 1024] # 搜索最佳的网络神经元宽度，剔除 64 因为 13D 状态信息量太大
+    activation_fn:
+      values: [tanh, relu]        # 测试不同激活函数对连续控制输出的平滑度影响

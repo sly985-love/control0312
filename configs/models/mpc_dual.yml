@@ -1,0 +1,29 @@
+# ==============================================================================
+# 文件路径: configs/models/mpc_dual.yml
+# 描述: PFAL 双区模型预测控制 (MPC / SMPC) 求解器配置
+# ==============================================================================
+
+PFAL_Dual:
+  # --- 预测视界与场景 ---
+  Np: 36                  # 预测步数 (Prediction horizon): 36步 * 10分钟 = 6小时
+  Ns: 10                  # SMPC 随机场景数 (Number of scenarios, 原版为1，现扩大至10以应对极端天气)
+  uncertainty_value: 0.05 # 扰动的标准差 (Standard deviation of the disturbance)
+
+  # --- 目标函数权重 (Objective Function Weights) ---
+  weights:
+    alpha_yield: 1000.0   # 双区总干重增益的奖励权重
+    beta_energy: 1.0      # 经济成本(电费/气费)的惩罚权重
+    w_terminal: 1.0       # RL终端价值网络 (Terminal Value) 的置信度权重
+
+  # --- IPOPT 求解器底层参数 (严格继承原版以保证收敛性) ---
+  nlp_opts:
+    verbose: 0
+    print_time: 0
+    ipopt:
+      warm_start_entire_iterate: "yes"         # 开启热启动加速求解
+      nlp_scaling_method: "gradient-based"     # 梯度缩放方法
+      max_iter: 5000                           # 最大迭代次数
+      constr_viol_tol: 0.01                    # 约束违规容忍度
+      acceptable_constr_viol_tol: 0.1          # 可接受的约束违规容忍度
+      acceptable_tol: 1.e-2                    # 可接受的容忍度
+      print_level: 0                           # 关闭底层打印
